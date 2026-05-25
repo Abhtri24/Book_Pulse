@@ -13,8 +13,13 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
     groq_api_key: str | None = None
-    redis_url: str = "redis://localhost:6379/0"
-    qdrant_url: str = "http://localhost:6333"
+    redis_url: str = Field(default="redis://localhost:6379/0", min_length=1)
+    embedding_model_name: str = Field(
+        default="sentence-transformers/all-MiniLM-L6-v2",
+        min_length=1,
+    )
+    qdrant_url: str = Field(default="http://localhost:6333", min_length=1)
+    qdrant_collection_name: str = Field(default="snippets", min_length=1)
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
