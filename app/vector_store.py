@@ -1,1 +1,84 @@
-"""Qdrant vector store helpers will be implemented in Phase 2."""
+from functools import lru_cache
+from typing import Any
+
+from qdrant_client import QdrantClient
+from qdrant_client.http import models
+
+from app.config import get_settings
+from app.models.snippet import Snippet
+
+VECTOR_SIZE = 384
+
+
+@lru_cache(maxsize=1)
+def get_qdrant_client() -> QdrantClient:
+    settings = get_settings()
+    return QdrantClient(url=settings.qdrant_url)
+
+
+def ensure_snippet_collection(
+    client: QdrantClient | None = None,
+    vector_size: int = VECTOR_SIZE,
+) -> None:
+    settings = get_settings()
+    qdrant = client or get_qdrant_client()
+
+    if qdrant.collection_exists(settings.qdrant_collection_name):
+        return
+
+    qdrant.create_collection(
+        collection_name=settings.qdrant_collection_name,
+        vectors_config=models.VectorParams(
+            size=vector_size,
+            distance=models.Distance.COSINE,
+        ),
+    )
+
+
+def upsert_snippet(
+    snippet: Snippet,
+    embedding: list[float],
+    client: QdrantClient | None = None,
+) -> str:
+    if len(embedding) != VECTOR_SIZE:
+        raise ValueError(f"snippet embedding must have {VECTOR_SIZE} dimensions")
+
+    settings = get_settings()
+    qdrant = client or get_qdrant_client()
+    embedding_id = str(snippet.id)
+    qdrant.upsert(
+        collection_name=settings.qdrant_collection_name,
+        points=[
+            models.PointStruct(
+                id=embedding_id,
+                vector=embedding,
+                payload=_snippet_payload(snippet),
+            )
+        ],
+    )
+    return embedding_id
+
+
+def search_similar(
+    query_vector: list[float],
+    limit: int = 10,
+    client: QdrantClient | None = None,
+) -> list[Any]:
+    settings = get_settings()
+    qdrant = client or get_qdrant_client()
+    return qdrant.search(
+        collection_name=settings.qdrant_collection_name,
+        query_vector=query_vector,
+        limit=limit,
+    )
+
+
+def _snippet_payload(snippet: Snippet) -> dict[str, Any]:
+    return {
+        "snippet_id": str(snippet.id),
+        "book_id": str(snippet.book_id),
+        "author_id": str(snippet.author_id),
+        "chapter_number": snippet.chapter_number,
+        "processing_status": snippet.processing_status.value,
+        "created_at": snippet.created_at.isoformat(),
+    }
