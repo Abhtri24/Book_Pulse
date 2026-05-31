@@ -35,3 +35,9 @@ class Snippet(Base):
 
     author = relationship("Author", back_populates="snippets")
     book = relationship("Book", back_populates="snippets")
+    metadata_record = relationship(
+        "SnippetMetadata",
+        back_populates="snippet",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )

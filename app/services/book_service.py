@@ -35,6 +35,7 @@ async def create_snippet(
     author: Author,
     book: Book,
     payload: SnippetCreateRequest,
+    enqueue_processing: bool = True,
 ) -> Snippet:
     snippet = Snippet(
         book_id=book.id,
@@ -45,4 +46,8 @@ async def create_snippet(
     db.add(snippet)
     await db.commit()
     await db.refresh(snippet)
+    if enqueue_processing:
+        from app.tasks.snippet_pipeline import process_snippet
+
+        process_snippet.delay(str(snippet.id))
     return snippet
