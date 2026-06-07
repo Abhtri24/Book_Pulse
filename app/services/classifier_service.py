@@ -1,6 +1,7 @@
 import json
 
 import httpx
+from pydantic import ValidationError
 
 from app.config import get_settings
 from app.schemas.classifier import ClassifierResult
@@ -22,6 +23,10 @@ readability_score must be a number from 0 to 100.
 
 
 class ClassifierServiceError(RuntimeError):
+    pass
+
+
+class ClassifierResponseError(ClassifierServiceError):
     pass
 
 
@@ -49,22 +54,41 @@ async def classify_snippet(
     should_close_client = client is None
     http_client = client or httpx.AsyncClient(timeout=30)
     try:
-        response = await http_client.post(
-            GROQ_CHAT_COMPLETIONS_URL,
-            headers={"Authorization": f"Bearer {settings.groq_api_key}"},
-            json={
-                "model": settings.groq_classifier_model,
-                "messages": build_classifier_messages(snippet_text),
-                "temperature": 0,
-                "response_format": {"type": "json_object"},
-            },
-        )
-        response.raise_for_status()
+        last_error: Exception | None = None
+        for _ in range(2):
+            response = await http_client.post(
+                GROQ_CHAT_COMPLETIONS_URL,
+                headers={"Authorization": f"Bearer {settings.groq_api_key}"},
+                json={
+                    "model": settings.groq_classifier_model,
+                    "messages": build_classifier_messages(snippet_text),
+                    "temperature": 0,
+                    "response_format": {"type": "json_object"},
+                },
+            )
+            response.raise_for_status()
+            try:
+                return _parse_classifier_response(response, settings.groq_classifier_model)
+            except (ClassifierResponseError, ValidationError) as exc:
+                last_error = exc
+        raise ClassifierResponseError("classifier returned invalid structured output") from last_error
     finally:
         if should_close_client:
             await http_client.aclose()
 
+
+def _parse_classifier_response(
+    response: httpx.Response,
+    classifier_model: str,
+) -> ClassifierResult:
     content = response.json()["choices"][0]["message"]["content"]
-    payload = json.loads(content)
-    payload.setdefault("classifier_model", settings.groq_classifier_model)
+    try:
+        payload = json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise ClassifierResponseError("classifier returned malformed JSON") from exc
+
+    if not isinstance(payload, dict):
+        raise ClassifierResponseError("classifier returned non-object JSON")
+
+    payload.setdefault("classifier_model", classifier_model)
     return ClassifierResult.model_validate(payload)
