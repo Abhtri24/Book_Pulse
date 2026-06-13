@@ -38,6 +38,7 @@ def ensure_snippet_collection(
 def upsert_snippet(
     snippet: Snippet,
     embedding: list[float],
+    metadata: Any = None,
     client: QdrantClient | None = None,
 ) -> str:
     if len(embedding) != VECTOR_SIZE:
@@ -52,7 +53,7 @@ def upsert_snippet(
             models.PointStruct(
                 id=embedding_id,
                 vector=embedding,
-                payload=_snippet_payload(snippet),
+                payload=_snippet_payload(snippet, metadata),
             )
         ],
     )
@@ -73,8 +74,8 @@ def search_similar(
     )
 
 
-def _snippet_payload(snippet: Snippet) -> dict[str, Any]:
-    return {
+def _snippet_payload(snippet: Snippet, metadata: Any = None) -> dict[str, Any]:
+    payload = {
         "snippet_id": str(snippet.id),
         "book_id": str(snippet.book_id),
         "author_id": str(snippet.author_id),
@@ -82,3 +83,19 @@ def _snippet_payload(snippet: Snippet) -> dict[str, Any]:
         "processing_status": snippet.processing_status.value,
         "created_at": snippet.created_at.isoformat(),
     }
+    m = metadata
+    if m is None and "metadata_record" in snippet.__dict__:
+        m = snippet.metadata_record
+
+    if m is not None:
+        payload.update({
+            "primary_genre": m.primary_genre,
+            "sub_genres": m.sub_genres,
+            "pov": m.pov,
+            "pacing": m.pacing,
+            "tone": m.tone,
+            "hook_type": m.hook_type,
+            "readability_score": m.readability_score,
+            "classifier_model": m.classifier_model,
+        })
+    return payload

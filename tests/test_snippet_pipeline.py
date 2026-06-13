@@ -45,11 +45,28 @@ async def test_process_snippet_sets_ready_and_embedding_id(monkeypatch, db_sessi
         lambda: calls.__setitem__("ensure_collection", calls["ensure_collection"] + 1),
     )
 
-    def fake_upsert(processed_snippet, processed_embedding):
+    from app.schemas.classifier import ClassifierResult
+    async def mock_classify_snippet(text, client=None):
+        return ClassifierResult(
+            primary_genre="sci-fi",
+            sub_genres=["space_opera"],
+            pov="third_person",
+            pacing="moderate",
+            tone="neutral",
+            hook_type="mystery",
+            readability_score=60.0,
+            classifier_model="test-classifier-model",
+        )
+    monkeypatch.setattr("app.tasks.snippet_pipeline.classify_snippet", mock_classify_snippet)
+
+    def fake_upsert(processed_snippet, processed_embedding, metadata=None):
         calls["upsert"] += 1
         assert processed_snippet.id == snippet.id
         assert processed_snippet.processing_status == ProcessingStatus.processing
         assert processed_embedding == embedding
+        assert metadata is not None
+        assert metadata.primary_genre == "sci-fi"
+        assert metadata.pov == "third_person"
         return f"embedding-{processed_snippet.id}"
 
     monkeypatch.setattr(snippet_pipeline, "upsert_snippet", fake_upsert)
@@ -64,6 +81,15 @@ async def test_process_snippet_sets_ready_and_embedding_id(monkeypatch, db_sessi
     }
     assert snippet.processing_status == ProcessingStatus.ready
     assert snippet.embedding_id == f"embedding-{snippet.id}"
+
+    from app.models.snippet_metadata import SnippetMetadata
+    from sqlalchemy import select
+    meta_query = await db_session.execute(
+        select(SnippetMetadata).where(SnippetMetadata.snippet_id == snippet.id)
+    )
+    saved_metadata = meta_query.scalar_one_or_none()
+    assert saved_metadata is not None
+    assert saved_metadata.primary_genre == "sci-fi"
     assert calls == {"ensure_collection": 1, "upsert": 1}
 
 

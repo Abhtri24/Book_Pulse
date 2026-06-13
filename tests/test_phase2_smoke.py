@@ -38,12 +38,26 @@ async def test_phase2_mocked_embedding_pipeline_smoke(monkeypatch, client, db_se
     assert upload_body["processing_status"] == "pending"
     assert scheduled_snippet_ids == [upload_body["id"]]
 
+    from app.schemas.classifier import ClassifierResult
+    async def mock_classify_snippet(text, client=None):
+        return ClassifierResult(
+            primary_genre="fantasy",
+            sub_genres=["magic"],
+            pov="first_person",
+            pacing="slow",
+            tone="dark",
+            hook_type="action",
+            readability_score=50.0,
+            classifier_model="test-classifier-model",
+        )
+    monkeypatch.setattr("app.tasks.snippet_pipeline.classify_snippet", mock_classify_snippet)
+
     monkeypatch.setattr(snippet_pipeline, "embed_text", lambda text: [0.1] * VECTOR_SIZE)
     monkeypatch.setattr(snippet_pipeline, "ensure_snippet_collection", lambda: None)
     monkeypatch.setattr(
         snippet_pipeline,
         "upsert_snippet",
-        lambda snippet, embedding: f"embedding-{snippet.id}",
+        lambda snippet, embedding, metadata=None: f"embedding-{snippet.id}",
     )
 
     result = await snippet_pipeline.process_snippet_async(
