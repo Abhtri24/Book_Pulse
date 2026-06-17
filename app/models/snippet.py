@@ -41,3 +41,9 @@ class Snippet(Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    feedback_record = relationship(
+        "SnippetFeedback",
+        back_populates="snippet",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
