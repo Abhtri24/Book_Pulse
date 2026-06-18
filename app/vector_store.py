@@ -13,7 +13,7 @@ VECTOR_SIZE = 384
 @lru_cache(maxsize=1)
 def get_qdrant_client() -> QdrantClient:
     settings = get_settings()
-    return QdrantClient(url=settings.qdrant_url)
+    return QdrantClient(url=settings.qdrant_url,timeout=60,)
 
 
 def ensure_snippet_collection(

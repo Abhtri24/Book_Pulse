@@ -46,8 +46,8 @@ def upgrade() -> None:
 
     book_status = sa.Enum("draft", "published", "completed", "hiatus", name="bookstatus")
     processing_status = sa.Enum("pending", "processing", "ready", "failed", name="processingstatus")
-    book_status.create(op.get_bind(), checkfirst=True)
-    processing_status.create(op.get_bind(), checkfirst=True)
+    # book_status.create(op.get_bind(), checkfirst=True)
+    # processing_status.create(op.get_bind(), checkfirst=True)
 
     op.create_table(
         "books",

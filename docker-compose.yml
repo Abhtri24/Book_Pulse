@@ -40,7 +40,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "16379:6379"
 
   qdrant:
     image: qdrant/qdrant:v1.12.5

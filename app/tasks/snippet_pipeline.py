@@ -44,8 +44,10 @@ async def _process_snippet_in_session(
 
     try:
         embedding = embed_text(snippet.content)
+        print("STEP 1: embedding complete")
         
         classifier_result = await classify_snippet(snippet.content)
+        print("STEP 2: classifier complete")
         snippet_metadata = SnippetMetadata(
             snippet_id=snippet.id,
             primary_genre=classifier_result.primary_genre,
@@ -60,7 +62,9 @@ async def _process_snippet_in_session(
         db.add(snippet_metadata)
 
         ensure_snippet_collection()
+        print("STEP 3: ensure_snippet_collection complete")
         embedding_id = upsert_snippet(snippet, embedding, metadata=snippet_metadata)
+        print("STEP 4: upsert_snippet complete")
     except Exception:
         snippet.processing_status = ProcessingStatus.failed
         await db.commit()
