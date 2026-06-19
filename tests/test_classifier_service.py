@@ -70,7 +70,7 @@ async def test_classify_snippet_calls_groq_and_returns_validated_result(monkeypa
 
 @pytest.mark.asyncio
 async def test_classify_snippet_requires_api_key(monkeypatch):
-    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    monkeypatch.setenv("GROQ_API_KEY", "")
     get_settings.cache_clear()
 
     with pytest.raises(ClassifierServiceError, match="GROQ_API_KEY"):

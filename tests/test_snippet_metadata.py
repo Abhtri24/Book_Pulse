@@ -31,6 +31,11 @@ async def test_snippet_metadata_persists_as_one_to_one(db_session):
         hook_type="mystery",
         readability_score=72.5,
         classifier_model="test-classifier",
+        hook_score=80,
+        opening_style="mysterious",
+        curiosity_gap=True,
+        conflict_present=False,
+        dialogue_opening=False,
     )
     db_session.add_all([author, book, snippet, metadata])
     await db_session.commit()

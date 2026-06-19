@@ -97,5 +97,10 @@ def _snippet_payload(snippet: Snippet, metadata: Any = None) -> dict[str, Any]:
             "hook_type": m.hook_type,
             "readability_score": m.readability_score,
             "classifier_model": m.classifier_model,
+            "hook_score": m.hook_score,
+            "opening_style": m.opening_style,
+            "curiosity_gap": m.curiosity_gap,
+            "conflict_present": m.conflict_present,
+            "dialogue_opening": m.dialogue_opening,
         })
     return payload

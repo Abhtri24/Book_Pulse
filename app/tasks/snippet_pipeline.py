@@ -9,6 +9,8 @@ from app.models.snippet import ProcessingStatus, Snippet
 from app.models.snippet_metadata import SnippetMetadata
 from app.services.embedding_service import embed_text
 from app.services.classifier_service import classify_snippet
+from app.services.hook_service import check_hook_strength
+from app.services.quality_agent import analyze_readability
 from app.tasks.celery_app import celery_app
 from app.vector_store import ensure_snippet_collection, upsert_snippet
 
@@ -44,10 +46,10 @@ async def _process_snippet_in_session(
 
     try:
         embedding = embed_text(snippet.content)
-        print("STEP 1: embedding complete")
         
         classifier_result = await classify_snippet(snippet.content)
-        print("STEP 2: classifier complete")
+        readability_metrics = analyze_readability(snippet.content)
+        hook_metrics = check_hook_strength(snippet.content)
         snippet_metadata = SnippetMetadata(
             snippet_id=snippet.id,
             primary_genre=classifier_result.primary_genre,
@@ -55,16 +57,19 @@ async def _process_snippet_in_session(
             pov=classifier_result.pov,
             pacing=classifier_result.pacing,
             tone=classifier_result.tone,
-            hook_type=classifier_result.hook_type,
-            readability_score=classifier_result.readability_score,
+            hook_type=hook_metrics.hook_type,
+            readability_score=readability_metrics.flesch_reading_ease,
             classifier_model=classifier_result.classifier_model,
+            hook_score=hook_metrics.hook_score,
+            opening_style=hook_metrics.opening_style,
+            curiosity_gap=hook_metrics.curiosity_gap,
+            conflict_present=hook_metrics.conflict_present,
+            dialogue_opening=hook_metrics.dialogue_opening,
         )
         db.add(snippet_metadata)
 
         ensure_snippet_collection()
-        print("STEP 3: ensure_snippet_collection complete")
         embedding_id = upsert_snippet(snippet, embedding, metadata=snippet_metadata)
-        print("STEP 4: upsert_snippet complete")
     except Exception:
         snippet.processing_status = ProcessingStatus.failed
         await db.commit()

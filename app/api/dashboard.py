@@ -54,6 +54,11 @@ async def dev_list_snippets(
                 "hook_type": meta.hook_type,
                 "readability_score": meta.readability_score,
                 "classifier_model": meta.classifier_model,
+                "hook_score": meta.hook_score,
+                "opening_style": meta.opening_style,
+                "curiosity_gap": meta.curiosity_gap,
+                "conflict_present": meta.conflict_present,
+                "dialogue_opening": meta.dialogue_opening,
             } if meta else None
         })
     return response
@@ -1253,8 +1258,32 @@ async def get_dashboard() -> str:
                                 <span class="meta-pill-val">${m.readability_score.toFixed(1)} / 100</span>
                             </div>
                             <div class="meta-pill">
-                                <span class="meta-pill-label">Tone & Hook Type</span>
-                                <span class="meta-pill-val" style="text-transform: capitalize; font-size:11px;">${m.tone} (${m.hook_type})</span>
+                                <span class="meta-pill-label">Tone</span>
+                                <span class="meta-pill-val" style="text-transform: capitalize; font-size:11px;">${m.tone}</span>
+                            </div>
+                            <div class="meta-pill">
+                                <span class="meta-pill-label">Hook Score</span>
+                                <span class="meta-pill-val">${m.hook_score} / 100</span>
+                            </div>
+                            <div class="meta-pill">
+                                <span class="meta-pill-label">Hook Type</span>
+                                <span class="meta-pill-val" style="text-transform: capitalize;">${m.hook_type}</span>
+                            </div>
+                            <div class="meta-pill">
+                                <span class="meta-pill-label">Opening Style</span>
+                                <span class="meta-pill-val" style="text-transform: capitalize; font-size:11px;">${m.opening_style.replace(/_/g, ' ')}</span>
+                            </div>
+                            <div class="meta-pill">
+                                <span class="meta-pill-label">Curiosity Gap</span>
+                                <span class="meta-pill-val">${m.curiosity_gap ? 'Yes' : 'No'}</span>
+                            </div>
+                            <div class="meta-pill">
+                                <span class="meta-pill-label">Conflict Present</span>
+                                <span class="meta-pill-val">${m.conflict_present ? 'Yes' : 'No'}</span>
+                            </div>
+                            <div class="meta-pill">
+                                <span class="meta-pill-label">Dialogue Opening</span>
+                                <span class="meta-pill-val">${m.dialogue_opening ? 'Yes' : 'No'}</span>
                             </div>
                             <div class="meta-pill">
                                 <span class="meta-pill-label">LLM Model</span>

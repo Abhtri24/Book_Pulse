@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Float, ForeignKey, JSON, String
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -24,6 +24,11 @@ class SnippetMetadata(Base):
     hook_type: Mapped[str] = mapped_column(String(80))
     readability_score: Mapped[float] = mapped_column(Float)
     classifier_model: Mapped[str] = mapped_column(String(100))
+    hook_score: Mapped[int] = mapped_column(Integer, default=50)
+    opening_style: Mapped[str] = mapped_column(String(50), default="neutral")
+    curiosity_gap: Mapped[bool] = mapped_column(Boolean, default=False)
+    conflict_present: Mapped[bool] = mapped_column(Boolean, default=False)
+    dialogue_opening: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

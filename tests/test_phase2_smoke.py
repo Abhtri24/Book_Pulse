@@ -4,7 +4,7 @@ from uuid import UUID
 from app.models.snippet import ProcessingStatus, Snippet
 from app.tasks import snippet_pipeline
 from app.vector_store import VECTOR_SIZE
-from tests.test_books import make_snippet, register_and_login_author
+from test_books import make_snippet, register_and_login_author
 
 
 @pytest.mark.asyncio
