@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.signals import worker_process_shutdown, worker_shutdown
 
 from app.config import get_settings
 
@@ -9,7 +10,7 @@ def create_celery_app() -> Celery:
         "bookpulse",
         broker=settings.redis_url,
         backend=settings.redis_url,
-        include=["app.tasks.snippet_pipeline"],
+        include=["app.tasks.snippet_pipeline", "app.tasks.quality_task"],
     )
     celery_app.conf.update(
         task_serializer="json",
@@ -23,3 +24,11 @@ def create_celery_app() -> Celery:
 
 
 celery_app = create_celery_app()
+
+
+@worker_process_shutdown.connect
+@worker_shutdown.connect
+def shutdown_worker_resources(**_: object) -> None:
+    from app.database_worker import shutdown_worker_database
+
+    shutdown_worker_database()

@@ -27,7 +27,6 @@ async def test_snippet_feedback_persists_as_one_to_one(db_session):
         improvements=["Tighten middle pacing", "Clarify protagonist goal"],
         hook_score=8,
         rewrite_suggestion="Try opening with the character's dilemma in the first sentence.",
-        agent_model="test-agent",
     )
     db_session.add_all([author, book, snippet, feedback])
     await db_session.commit()
@@ -39,4 +38,4 @@ async def test_snippet_feedback_persists_as_one_to_one(db_session):
     assert saved_feedback.strengths == ["Strong opening hook", "Vivid imagery"]
     assert saved_feedback.improvements == ["Tighten middle pacing", "Clarify protagonist goal"]
     assert saved_feedback.hook_score == 8
-    assert saved_feedback.snippet.feedback_record.rewrite_suggestion.startswith("Try opening")
+    assert saved_feedback.rewrite_suggestion.startswith("Try opening")

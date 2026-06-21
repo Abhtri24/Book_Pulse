@@ -177,6 +177,9 @@ async def run_quality_agent(
                     "tool_choice": "auto",
                 },
             )
+            if response.status_code != 200:
+                print("GROQ ERROR:")
+                print(response.text)
             response.raise_for_status()
             resp_data = response.json()
             choice = resp_data["choices"][0]

@@ -1178,21 +1178,46 @@ async def get_dashboard() -> str:
             }
         }
 
-        async function loadSnippets() {
-            if (!activeToken || activeRole !== "author") return;
-            try {
-                const res = await fetch(`${API_URL}/api/dev/snippets`, {
-                    headers: { "Authorization": `Bearer ${activeToken}` }
-                });
-                if (res.ok) {
-                    const snippets = await res.json();
-                    renderSnippetsList(snippets);
-                }
-            } catch (err) {
-                console.error("Error loading snippets", err);
-            }
-        }
+     async function loadSnippets() {
+    if (!activeToken || activeRole !== "author") return;
 
+    try {
+        const res = await fetch(`${API_URL}/api/dev/snippets`, {
+            headers: { "Authorization": `Bearer ${activeToken}` }
+        });
+
+        if (res.ok) {
+const snippets = await res.json();
+
+if (window.snippetCache) {
+    snippets.forEach(snippet => {
+        const cached = window.snippetCache[snippet.id];
+
+        if (cached?.feedback) {
+            snippet.feedback = cached.feedback;
+        }
+    });
+}
+
+window.snippetCache = Object.fromEntries(
+    snippets.map(s => [s.id, s])
+);
+            const hasPending = snippets.some(
+                s => s.processing_status !== "ready"
+            );
+
+            if (!hasPending && pollingInterval) {
+                console.log("Stopping polling - all snippets ready");
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+
+            renderSnippetsList(snippets);
+        }
+    } catch (err) {
+        console.error("Error loading snippets", err);
+    }
+}
         function renderSnippetsList(snippets) {
             const list = document.getElementById("snippetsList");
             if (snippets.length === 0) {
@@ -1345,10 +1370,125 @@ async def get_dashboard() -> str:
                     <span class="detail-value">${snippet.embedding_id || 'Not indexed yet'}</span>
                 </div>
                 ${metadataHtml}
+                <div class="detail-block feedback-block" style="grid-column: span 2;">
+                    <span class="detail-label">AI Feedback</span>
+                   <div id="feedback-${snippet.id}">
+    ${
+        snippet.feedback
+            ? `
+            <div class="meta-pill-grid">
+                <div class="meta-pill">
+                    <span class="meta-pill-label">Strengths</span>
+                    <span class="meta-pill-val">
+                        ${(snippet.feedback.strengths || []).join(", ")}
+                    </span>
+                </div>
+
+                <div class="meta-pill">
+                    <span class="meta-pill-label">Improvements</span>
+                    <span class="meta-pill-val">
+                        ${(snippet.feedback.improvements || []).join(", ")}
+                    </span>
+                </div>
+
+                <div class="meta-pill">
+                    <span class="meta-pill-label">Hook Score</span>
+                    <span class="meta-pill-val">
+                        ${snippet.feedback.hook_score}/10
+                    </span>
+                </div>
+
+                <div class="meta-pill">
+                    <span class="meta-pill-label">Rewrite Suggestion</span>
+                    <span class="meta-pill-val">
+                        ${snippet.feedback.rewrite_suggestion}
+                    </span>
+                </div>
+            </div>
+            `
+            : "Feedback still processing"
+    }
+</div>
+                </div>
             `;
             item.appendChild(details);
+            loadSnippetFeedback(snippet);
+        }
+async function loadSnippetFeedback(snippet) {
+    const feedbackEl = document.getElementById(`feedback-${snippet.id}`);
+
+    if (!feedbackEl || !activeToken) {
+        return;
+    }
+
+    try {
+        const res = await fetch(
+            `${API_URL}/books/${snippet.book_id}/snippets/${snippet.id}/feedback`,
+            {
+                headers: {
+                    Authorization: `Bearer ${activeToken}`
+                }
+            }
+        );
+
+        if (res.status === 404) {
+            feedbackEl.innerText = "Feedback still processing";
+            return;
         }
 
+        if (!res.ok) {
+            console.error("Feedback request failed:", res.status);
+            feedbackEl.innerText = "Feedback unavailable";
+            return;
+        }
+
+        const feedback = await res.json();
+snippet.feedback = feedback;
+
+if (!window.snippetCache) {
+    window.snippetCache = {};
+}
+
+window.snippetCache[snippet.id] = snippet;        console.log("FEEDBACK OBJECT:", feedback);
+
+        feedbackEl.style.borderStyle = "solid";
+        feedbackEl.innerHTML = `
+            <div class="meta-pill-grid">
+                <div class="meta-pill">
+                    <span class="meta-pill-label">Strengths</span>
+                    <span class="meta-pill-val" style="font-size:11px;">
+                        ${(feedback.strengths || []).join(", ") || "None yet"}
+                    </span>
+                </div>
+
+                <div class="meta-pill">
+                    <span class="meta-pill-label">Improvements</span>
+                    <span class="meta-pill-val" style="font-size:11px;">
+                        ${(feedback.improvements || []).join(", ") || "None yet"}
+                    </span>
+                </div>
+
+                <div class="meta-pill">
+                    <span class="meta-pill-label">Hook Score</span>
+                    <span class="meta-pill-val">
+                        ${feedback.hook_score} / 10
+                    </span>
+                </div>
+
+                <div class="meta-pill">
+                    <span class="meta-pill-label">Rewrite Suggestion</span>
+                    <span class="meta-pill-val" style="font-size:11px;">
+                        ${feedback.rewrite_suggestion || "None"}
+                    </span>
+                </div>
+            </div>
+        `;
+        console.log("UPDATED HTML:", feedbackEl.innerHTML);
+    } catch (err) {
+        console.error("Error loading snippet feedback", err);
+        feedbackEl.innerText = "Feedback unavailable";
+    }
+}
         async function loadTopSnippets() {
             if (!activeToken || activeRole !== "author") return;
             const metric = document.getElementById("topSnippetsMetricSelect").value;

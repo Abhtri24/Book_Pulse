@@ -1,10 +1,10 @@
-import asyncio
+import logging
 import uuid
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import AsyncSessionLocal
+from app.database_worker import run_worker_async, worker_session
 from app.models.snippet import ProcessingStatus, Snippet
 from app.models.snippet_metadata import SnippetMetadata
 from app.services.embedding_service import embed_text
@@ -14,26 +14,32 @@ from app.services.quality_agent import analyze_readability
 from app.tasks.celery_app import celery_app
 from app.vector_store import ensure_snippet_collection, upsert_snippet
 
+logger = logging.getLogger(__name__)
+
 
 @celery_app.task(name="app.tasks.snippet_pipeline.process_snippet")
-def process_snippet(snippet_id: str) -> dict[str, Any]:
-    return asyncio.run(process_snippet_async(snippet_id))
+def process_snippet(snippet_id: str, enqueue_feedback: bool = True) -> dict[str, Any]:
+    return run_worker_async(
+        lambda: process_snippet_async(snippet_id, enqueue_feedback=enqueue_feedback)
+    )
 
 
 async def process_snippet_async(
     snippet_id: str,
     db: AsyncSession | None = None,
+    enqueue_feedback: bool = True,
 ) -> dict[str, Any]:
     if db is not None:
-        return await _process_snippet_in_session(db, snippet_id)
+        return await _process_snippet_in_session(db, snippet_id, enqueue_feedback=enqueue_feedback)
 
-    async with AsyncSessionLocal() as session:
-        return await _process_snippet_in_session(session, snippet_id)
+    async with worker_session() as session:
+        return await _process_snippet_in_session(session, snippet_id, enqueue_feedback=enqueue_feedback)
 
 
 async def _process_snippet_in_session(
     db: AsyncSession,
     snippet_id: str,
+    enqueue_feedback: bool = True,
 ) -> dict[str, Any]:
     snippet_uuid = uuid.UUID(snippet_id)
     snippet = await db.get(Snippet, snippet_uuid)
@@ -86,6 +92,15 @@ async def _process_snippet_in_session(
     snippet.processing_status = ProcessingStatus.ready
     await db.commit()
     await db.refresh(snippet)
+
+    if enqueue_feedback:
+        try:
+            from app.tasks.quality_task import process_feedback
+
+            process_feedback.delay(str(snippet.id))
+        except Exception:
+            logger.exception("Failed to enqueue feedback task for snippet %s", snippet.id)
+
     return {
         "snippet_id": str(snippet.id),
         "embedding_id": embedding_id,
