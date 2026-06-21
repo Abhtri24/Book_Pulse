@@ -50,6 +50,12 @@ async def _process_snippet_in_session(
         classifier_result = await classify_snippet(snippet.content)
         readability_metrics = analyze_readability(snippet.content)
         hook_metrics = check_hook_strength(snippet.content)
+        
+        quality_score = float(
+            (hook_metrics.hook_score * 0.6)
+            + (readability_metrics.flesch_reading_ease * 0.4)
+        )
+        
         snippet_metadata = SnippetMetadata(
             snippet_id=snippet.id,
             primary_genre=classifier_result.primary_genre,
@@ -59,6 +65,7 @@ async def _process_snippet_in_session(
             tone=classifier_result.tone,
             hook_type=hook_metrics.hook_type,
             readability_score=readability_metrics.flesch_reading_ease,
+            quality_score=quality_score,
             classifier_model=classifier_result.classifier_model,
             hook_score=hook_metrics.hook_score,
             opening_style=hook_metrics.opening_style,

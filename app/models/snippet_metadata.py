@@ -23,6 +23,7 @@ class SnippetMetadata(Base):
     tone: Mapped[str] = mapped_column(String(80))
     hook_type: Mapped[str] = mapped_column(String(80))
     readability_score: Mapped[float] = mapped_column(Float)
+    quality_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     classifier_model: Mapped[str] = mapped_column(String(100))
     hook_score: Mapped[int] = mapped_column(Integer, default=50)
     opening_style: Mapped[str] = mapped_column(String(50), default="neutral")

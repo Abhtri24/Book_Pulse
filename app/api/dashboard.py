@@ -53,6 +53,7 @@ async def dev_list_snippets(
                 "tone": meta.tone,
                 "hook_type": meta.hook_type,
                 "readability_score": meta.readability_score,
+                "quality_score": meta.quality_score,
                 "classifier_model": meta.classifier_model,
                 "hook_score": meta.hook_score,
                 "opening_style": meta.opening_style,
@@ -776,6 +777,26 @@ async def get_dashboard() -> str:
                 </div>
             </div>
 
+            <!-- Top Snippets section (Visible for authenticated authors) -->
+            <div id="topSnippetsArea" style="display: none;" class="card">
+                <div class="card-title" style="margin-bottom: 12px;">
+                    <span>🏆 Top Snippets</span>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span style="font-size: 12px; color: var(--text-muted);">Sort:</span>
+                        <select id="topSnippetsMetricSelect" class="form-control" style="width: auto; padding: 4px 8px; font-size: 12px; height: auto;" onchange="loadTopSnippets()">
+                            <option value="quality">Quality</option>
+                            <option value="hook">Hook</option>
+                            <option value="readability">Readability</option>
+                        </select>
+                        <button class="btn btn-secondary" style="width: auto; padding: 4px 12px; font-size:12px; height: 30px;" onclick="loadTopSnippets()">Refresh</button>
+                    </div>
+                </div>
+                <div class="card-subtitle" style="margin-bottom: 20px;">Ranked analysis of all uploaded snippets across books.</div>
+                <div id="topSnippetsList" class="snippet-list">
+                    <div class="empty-state">No ranked snippets found. Upload and process snippets to view rankings.</div>
+                </div>
+            </div>
+
             <!-- Standard state for non-authenticated -->
             <div id="anonymousSplash" class="card" style="text-align: center; padding: 60px 24px;">
                 <h2 style="font-family:'Outfit', sans-serif; font-size: 24px; margin-bottom: 12px;">Welcome to BookPulse</h2>
@@ -993,15 +1014,21 @@ async def get_dashboard() -> str:
             if (activeRole === "author") {
                 document.getElementById("authorArea").style.display = "flex";
                 document.getElementById("snippetsQueueArea").style.display = "block";
+                document.getElementById("topSnippetsArea").style.display = "block";
                 loadBooks();
                 loadSnippets();
+                loadTopSnippets();
                 
                 if (!pollingInterval) {
-                    pollingInterval = setInterval(loadSnippets, 5000);
+                    pollingInterval = setInterval(() => {
+                        loadSnippets();
+                        loadTopSnippets();
+                    }, 5000);
                 }
             } else {
                 document.getElementById("authorArea").style.display = "none";
                 document.getElementById("snippetsQueueArea").style.display = "none";
+                document.getElementById("topSnippetsArea").style.display = "none";
                 document.getElementById("anonymousSplash").style.display = "block";
                 document.getElementById("anonymousSplash").querySelector("h2").innerText = "Logged in as Reader";
                 document.getElementById("anonymousSplash").querySelector("p").innerText = "Reader recommendation feeds and engagement models are currently in active development. Stay tuned for Phase 5!";
@@ -1017,6 +1044,7 @@ async def get_dashboard() -> str:
 
             document.getElementById("authorArea").style.display = "none";
             document.getElementById("snippetsQueueArea").style.display = "none";
+            document.getElementById("topSnippetsArea").style.display = "none";
             document.getElementById("anonymousSplash").style.display = "block";
             document.getElementById("anonymousSplash").querySelector("h2").innerText = "Welcome to BookPulse";
             document.getElementById("anonymousSplash").querySelector("p").innerText = "BookPulse uses state-of-the-art embedding pipelines and structured LLM classifiers to build candidate vector indexes. Log in as an Author to start publishing and running the pipeline.";
@@ -1258,6 +1286,10 @@ async def get_dashboard() -> str:
                                 <span class="meta-pill-val">${m.readability_score.toFixed(1)} / 100</span>
                             </div>
                             <div class="meta-pill">
+                                <span class="meta-pill-label">Quality Score</span>
+                                <span class="meta-pill-val">${m.quality_score !== null && m.quality_score !== undefined ? m.quality_score.toFixed(2) : 'N/A'} / 100</span>
+                            </div>
+                            <div class="meta-pill">
                                 <span class="meta-pill-label">Tone</span>
                                 <span class="meta-pill-val" style="text-transform: capitalize; font-size:11px;">${m.tone}</span>
                             </div>
@@ -1315,6 +1347,72 @@ async def get_dashboard() -> str:
                 ${metadataHtml}
             `;
             item.appendChild(details);
+        }
+
+        async function loadTopSnippets() {
+            if (!activeToken || activeRole !== "author") return;
+            const metric = document.getElementById("topSnippetsMetricSelect").value;
+            try {
+                const res = await fetch(`${API_URL}/snippets/top?metric=${metric}`, {
+                    headers: { "Authorization": `Bearer ${activeToken}` }
+                });
+                if (res.ok) {
+                    const topSnippets = await res.json();
+                    renderTopSnippetsList(topSnippets);
+                }
+            } catch (err) {
+                console.error("Error loading top snippets", err);
+            }
+        }
+
+        function renderTopSnippetsList(snippets) {
+            const list = document.getElementById("topSnippetsList");
+            if (snippets.length === 0) {
+                list.innerHTML = `<div class="empty-state">No ranked snippets found. Upload and process snippets to view rankings.</div>`;
+                return;
+            }
+
+            list.innerHTML = "";
+            snippets.forEach((snippet, index) => {
+                const item = document.createElement("div");
+                item.className = "snippet-item";
+                item.style.cursor = "default";
+                
+                // Format date
+                let uploadDate = "Unknown";
+                try {
+                    const date = new Date(snippet.created_at);
+                    uploadDate = date.toLocaleDateString() + " " + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                } catch(e) {}
+                
+                item.innerHTML = `
+                    <div class="snippet-header">
+                        <div class="snippet-meta-info">
+                            <span class="badge badge-success" style="background: var(--primary); color: white; border: none; font-size:12px;">#${index + 1}</span>
+                            <strong style="color: var(--text-color); text-transform: capitalize;">${snippet.primary_genre}</strong>
+                        </div>
+                        <span style="font-size:11px; color: var(--text-muted);">${uploadDate}</span>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 12px; color: var(--text-muted);">
+                        Snippet ID: <span style="font-family: monospace; color: var(--text-color);">${snippet.snippet_id}</span>
+                    </div>
+                    <div class="meta-pill-grid" style="margin-top: 12px;">
+                        <div class="meta-pill">
+                            <span class="meta-pill-label">Quality Score</span>
+                            <span class="meta-pill-val" style="color: #60a5fa; font-size: 14px;">${snippet.quality_score.toFixed(2)}</span>
+                        </div>
+                        <div class="meta-pill">
+                            <span class="meta-pill-label">Hook Score</span>
+                            <span class="meta-pill-val" style="color: #fb7185; font-size: 14px;">${snippet.hook_score}</span>
+                        </div>
+                        <div class="meta-pill">
+                            <span class="meta-pill-label">Readability Score</span>
+                            <span class="meta-pill-val" style="color: #34d399; font-size: 14px;">${snippet.readability_score.toFixed(2)}</span>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
         }
     </script>
 </body>

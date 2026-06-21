@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = 7
     groq_api_key: str | None = None
     groq_classifier_model: str = Field(default="llama-3.1-8b-instant", min_length=1)
+    groq_quality_model: str = Field(default="llama-3.3-70b-versatile", min_length=1)
     redis_url: str = Field(default="redis://localhost:6379/0", min_length=1)
     embedding_model_name: str = Field(
         default="sentence-transformers/all-MiniLM-L6-v2",
