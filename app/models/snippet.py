@@ -47,3 +47,8 @@ class Snippet(Base):
         cascade="all, delete-orphan",
         uselist=False,
     )
+    engagement_events = relationship(
+        "EngagementEvent",
+        back_populates="snippet",
+        cascade="all, delete-orphan",
+    )
