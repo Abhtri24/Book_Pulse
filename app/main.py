@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.api import auth, books, feedback, health, dashboard, snippets
+from app.api import auth, books, engagement, feedback, health, dashboard, snippets
 from app.config import get_settings
 
 
@@ -13,6 +13,7 @@ def create_app() -> FastAPI:
     app.include_router(feedback.router)
     app.include_router(snippets.router)
     app.include_router(dashboard.router)
+    app.include_router(engagement.router)
     return app
 
 
