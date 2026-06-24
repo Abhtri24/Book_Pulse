@@ -60,6 +60,39 @@ def upsert_snippet(
     return embedding_id
 
 
+def get_snippet_embedding(
+    snippet_id: str,
+    client: QdrantClient | None = None,
+) -> list[float] | None:
+    """Return the stored embedding for *snippet_id*, or ``None`` if not found.
+
+    Parameters
+    ----------
+    snippet_id:
+        The UUID of the snippet (as a string).  This must match the ``id``
+        used when the point was upserted via :func:`upsert_snippet`.
+    client:
+        Optional pre-constructed :class:`QdrantClient`.  Uses the cached
+        singleton when omitted.
+
+    Returns
+    -------
+    list[float] | None
+        The embedding vector, or ``None`` when the snippet has no point in
+        the collection yet.
+    """
+    settings = get_settings()
+    qdrant = client or get_qdrant_client()
+    results = qdrant.retrieve(
+        collection_name=settings.qdrant_collection_name,
+        ids=[snippet_id],
+        with_vectors=True,
+    )
+    if not results:
+        return None
+    return results[0].vector  # type: ignore[return-value]
+
+
 def search_similar(
     query_vector: list[float],
     limit: int = 10,
