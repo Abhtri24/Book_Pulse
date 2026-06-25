@@ -3,15 +3,21 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
+from sqlalchemy import event
 
 from app.models.author import Author
 from app.models.book import Book
-from app.models.reader import PREFERENCE_VECTOR_DIMENSIONS
+from app.models.reader import PREFERENCE_VECTOR_DIMENSIONS, Reader
 from app.models.snippet import ProcessingStatus, Snippet
 from app.models.snippet_metadata import SnippetMetadata
+from app.services.auth_service import create_access_token
 from app.services.feed_service import (
+    build_feed_response,
+    build_personalized_feed_response,
     build_cold_start_feed,
     fetch_cold_start_candidates,
     has_usable_preference_vector,
@@ -19,6 +25,11 @@ from app.services.feed_service import (
 
 
 REF = datetime(2026, 6, 26, 12, 0, 0, tzinfo=timezone.utc)
+PREF = [1.0 / (PREFERENCE_VECTOR_DIMENSIONS ** 0.5)] * PREFERENCE_VECTOR_DIMENSIONS
+
+
+def reader_token(reader: Reader) -> str:
+    return create_access_token(str(reader.id), "reader")
 
 
 async def seed_cold_start_data(db_session):
@@ -143,6 +154,74 @@ async def seed_cold_start_data(db_session):
     return recent_high, older_good, stale_low, pending
 
 
+async def seed_reader(db_session, *, preference_vector=None) -> Reader:
+    reader = Reader(
+        username=f"reader_{len(preference_vector or [])}_{datetime.now().timestamp()}",
+        email=f"reader_{datetime.now().timestamp()}@example.com",
+        password_hash="hash",
+        preference_vector=preference_vector or [],
+    )
+    db_session.add(reader)
+    await db_session.commit()
+    return reader
+
+
+async def seed_personalized_data(db_session):
+    author_a = Author(
+        username="personal_author_a",
+        email="personal_author_a@example.com",
+        password_hash="hash",
+    )
+    author_b = Author(
+        username="personal_author_b",
+        email="personal_author_b@example.com",
+        password_hash="hash",
+    )
+    book_a = Book(author=author_a, title="Personal A")
+    book_b = Book(author=author_b, title="Personal B")
+
+    snippets = []
+    for idx, (author, book, genre, quality, hook) in enumerate(
+        [
+            (author_a, book_a, "fantasy", 70.0, 70),
+            (author_b, book_b, "sci-fi", 95.0, 90),
+            (author_a, book_a, "mystery", 85.0, 80),
+        ],
+        start=1,
+    ):
+        snippet = Snippet(
+            author=author,
+            book=book,
+            content=f"Personalized snippet {idx}",
+            chapter_number=idx,
+            processing_status=ProcessingStatus.ready,
+        )
+        metadata = SnippetMetadata(
+            snippet=snippet,
+            primary_genre=genre,
+            sub_genres=[],
+            pov="third_person",
+            pacing="fast",
+            tone="serious",
+            hook_type="mystery",
+            readability_score=80.0,
+            quality_score=quality,
+            hook_score=hook,
+            classifier_model="model",
+            created_at=REF - timedelta(hours=idx),
+        )
+        snippets.append(snippet)
+        db_session.add(metadata)
+
+    db_session.add_all([author_a, author_b, book_a, book_b, *snippets])
+    await db_session.commit()
+    return snippets
+
+
+def qdrant_hit(snippet_id, score: float):
+    return SimpleNamespace(id=str(snippet_id), score=score, payload={"snippet_id": str(snippet_id)})
+
+
 class TestHasUsablePreferenceVector:
     def test_empty_vector_is_not_usable(self):
         assert has_usable_preference_vector([]) is False
@@ -265,3 +344,178 @@ async def test_build_cold_start_feed_zero_limit_returns_empty(db_session):
     await seed_cold_start_data(db_session)
     feed = await build_cold_start_feed(db_session, limit=0, reference_time=REF)
     assert feed == []
+
+
+@pytest.mark.asyncio
+async def test_build_feed_response_routes_empty_preference_to_cold_start(db_session):
+    await seed_cold_start_data(db_session)
+
+    response = await build_feed_response(
+        db_session,
+        preference_vector=[],
+        page=1,
+        page_size=2,
+        reference_time=REF,
+    )
+
+    assert response.mode == "cold_start"
+    assert len(response.items) == 2
+    assert response.pagination.page_size == 2
+
+
+@pytest.mark.asyncio
+async def test_personalized_feed_uses_mocked_qdrant_and_ranks_results(db_session):
+    snippets = await seed_personalized_data(db_session)
+    hits = [
+        qdrant_hit(snippets[0].id, 0.2),
+        qdrant_hit(snippets[1].id, 0.95),
+        qdrant_hit(snippets[2].id, 0.5),
+    ]
+
+    with patch("app.services.feed_service.search_similar", return_value=hits):
+        response = await build_personalized_feed_response(
+            db_session,
+            preference_vector=PREF,
+            page=1,
+            page_size=2,
+            reference_time=REF,
+        )
+
+    assert response.mode == "personalized"
+    assert [item.snippet_id for item in response.items][0] == snippets[1].id
+    assert response.items[0].metadata.primary_genre == "sci-fi"
+    assert response.items[0].snippet.content == "Personalized snippet 2"
+    assert response.pagination.total_items == 3
+    assert response.pagination.has_next is True
+
+
+@pytest.mark.asyncio
+async def test_personalized_feed_paginates_ranked_results(db_session):
+    snippets = await seed_personalized_data(db_session)
+    hits = [
+        qdrant_hit(snippets[0].id, 0.95),
+        qdrant_hit(snippets[1].id, 0.9),
+        qdrant_hit(snippets[2].id, 0.85),
+    ]
+
+    with patch("app.services.feed_service.search_similar", return_value=hits):
+        first = await build_personalized_feed_response(
+            db_session,
+            preference_vector=PREF,
+            page=1,
+            page_size=1,
+            reference_time=REF,
+        )
+        second = await build_personalized_feed_response(
+            db_session,
+            preference_vector=PREF,
+            page=2,
+            page_size=1,
+            reference_time=REF,
+        )
+
+    assert first.items[0].snippet_id != second.items[0].snippet_id
+    assert second.pagination.has_previous is True
+
+
+@pytest.mark.asyncio
+async def test_personalized_feed_loads_metadata_in_one_query(db_session):
+    snippets = await seed_personalized_data(db_session)
+    hits = [qdrant_hit(snippet.id, 0.9) for snippet in snippets]
+    statement_count = 0
+
+    def count_statement(*args):
+        nonlocal statement_count
+        statement_count += 1
+
+    event.listen(db_session.bind.sync_engine, "before_cursor_execute", count_statement)
+    try:
+        with patch("app.services.feed_service.search_similar", return_value=hits):
+            await build_personalized_feed_response(
+                db_session,
+                preference_vector=PREF,
+                page=1,
+                page_size=3,
+                reference_time=REF,
+            )
+    finally:
+        event.remove(db_session.bind.sync_engine, "before_cursor_execute", count_statement)
+
+    assert statement_count == 1
+
+
+@pytest.mark.asyncio
+async def test_feed_endpoint_requires_reader_auth(client, db_session):
+    response = await client.get("/feed")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_feed_endpoint_returns_cold_start_for_reader_without_vector(client, db_session):
+    await seed_cold_start_data(db_session)
+    reader = await seed_reader(db_session)
+
+    response = await client.get(
+        "/feed?page_size=1",
+        headers={"Authorization": f"Bearer {reader_token(reader)}"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mode"] == "cold_start"
+    assert body["pagination"]["page_size"] == 1
+    assert len(body["items"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_feed_endpoint_returns_personalized_for_reader_with_vector(client, db_session):
+    snippets = await seed_personalized_data(db_session)
+    reader = await seed_reader(db_session, preference_vector=PREF)
+    hits = [qdrant_hit(snippet.id, 0.9) for snippet in snippets]
+
+    with patch("app.services.feed_service.search_similar", return_value=hits):
+        response = await client.get(
+            "/feed?page_size=2",
+            headers={"Authorization": f"Bearer {reader_token(reader)}"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mode"] == "personalized"
+    assert len(body["items"]) == 2
+    assert "rank_score" in body["items"][0]
+
+
+@pytest.mark.asyncio
+async def test_end_to_end_mocked_engagement_to_personalized_feed(client, db_session):
+    snippets = await seed_personalized_data(db_session)
+    reader = await seed_reader(db_session)
+    unit_embedding = PREF
+
+    with patch("app.api.engagement.get_snippet_embedding", return_value=unit_embedding):
+        engagement = await client.post(
+            "/engage",
+            json={
+                "snippet_id": str(snippets[0].id),
+                "event_type": "read_complete",
+                "read_duration_seconds": 90,
+            },
+            headers={"Authorization": f"Bearer {reader_token(reader)}"},
+        )
+
+    assert engagement.status_code == 200
+
+    hits = [
+        qdrant_hit(snippets[2].id, 0.95),
+        qdrant_hit(snippets[0].id, 0.8),
+    ]
+    with patch("app.services.feed_service.search_similar", return_value=hits):
+        feed = await client.get(
+            "/feed?page_size=2",
+            headers={"Authorization": f"Bearer {reader_token(reader)}"},
+        )
+
+    assert feed.status_code == 200
+    body = feed.json()
+    assert body["mode"] == "personalized"
+    assert body["items"][0]["snippet_id"] == str(snippets[2].id)
