@@ -15,7 +15,11 @@ from app.vector_store import VECTOR_SIZE
 
 async def create_ready_snippet(db_session) -> Snippet:
     author = Author(username=f"qa-{uuid.uuid4()}", email=f"{uuid.uuid4()}@example.com", password_hash="hash")
-    book = Book(author=author, title="Feedback Book")
+    book = Book(
+        author=author,
+        title="Feedback Book",
+        external_url="https://example.com/feedback",
+    )
     snippet = Snippet(
         author=author,
         book=book,
@@ -122,7 +126,7 @@ async def test_duplicate_feedback_prevented(monkeypatch, db_session):
 @pytest.mark.asyncio
 async def test_full_flow_pipeline_ready_then_feedback_saved(monkeypatch, db_session):
     author = Author(username="flow-author", email="flow@example.com", password_hash="hash")
-    book = Book(author=author, title="Flow Book")
+    book = Book(author=author, title="Flow Book", external_url="https://example.com/flow")
     snippet = Snippet(
         author=author,
         book=book,

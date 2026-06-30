@@ -20,7 +20,12 @@ async def test_engagement_event_links_reader_and_snippet(db_session):
         email="phasefive-reader@example.com",
         password_hash="hashed",
     )
-    book = Book(author=author, title="Signals", description="A test book.")
+    book = Book(
+        author=author,
+        title="Signals",
+        description="A test book.",
+        external_url="https://example.com/signals",
+    )
     snippet = Snippet(
         author=author,
         book=book,

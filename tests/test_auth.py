@@ -32,7 +32,11 @@ async def test_register_author_and_login(client):
 async def test_protected_route_requires_author_token(client):
     response = await client.post(
         "/books",
-        json={"title": "No Token", "description": "Should fail."},
+        json={
+            "title": "No Token",
+            "description": "Should fail.",
+            "external_url": "https://example.com/book",
+        },
     )
 
     assert response.status_code == 401

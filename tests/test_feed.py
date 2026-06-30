@@ -43,8 +43,8 @@ async def seed_cold_start_data(db_session):
         email="author_b@example.com",
         password_hash="hash",
     )
-    book_a = Book(author=author_a, title="Book A")
-    book_b = Book(author=author_b, title="Book B")
+    book_a = Book(author=author_a, title="Book A", external_url="https://example.com/a")
+    book_b = Book(author=author_b, title="Book B", external_url="https://example.com/b")
 
     recent_high = Snippet(
         author=author_a,
@@ -177,8 +177,16 @@ async def seed_personalized_data(db_session):
         email="personal_author_b@example.com",
         password_hash="hash",
     )
-    book_a = Book(author=author_a, title="Personal A")
-    book_b = Book(author=author_b, title="Personal B")
+    book_a = Book(
+        author=author_a,
+        title="Personal A",
+        external_url="https://example.com/personal-a",
+    )
+    book_b = Book(
+        author=author_b,
+        title="Personal B",
+        external_url="https://example.com/personal-b",
+    )
 
     snippets = []
     for idx, (author, book, genre, quality, hook) in enumerate(
@@ -272,7 +280,7 @@ async def test_build_cold_start_feed_respects_genre_preference(db_session):
         email="genre_author@example.com",
         password_hash="hash",
     )
-    book = Book(author=author, title="Genre Book")
+    book = Book(author=author, title="Genre Book", external_url="https://example.com/genre")
     created_at = REF - timedelta(hours=2)
 
     fantasy = Snippet(

@@ -38,11 +38,18 @@ async def test_author_can_create_book_and_upload_valid_snippet(monkeypatch, clie
 
     book_response = await client.post(
         "/books",
-        json={"title": "The First Ember", "description": "A discovery fantasy."},
+        json={
+            "title": "The First Ember",
+            "description": "A discovery fantasy.",
+            "external_url": "https://royalroad.com/fiction/first-ember",
+            "source_platform": "royalroad",
+        },
         headers=headers,
     )
 
     assert book_response.status_code == 201
+    assert book_response.json()["external_url"] == "https://royalroad.com/fiction/first-ember"
+    assert book_response.json()["source_platform"] == "royalroad"
     book_id = book_response.json()["id"]
 
     snippet_response = await client.post(
@@ -72,7 +79,11 @@ async def test_snippet_upload_schedules_processing(monkeypatch, client):
     headers = {"Authorization": f"Bearer {token}"}
     book_response = await client.post(
         "/books",
-        json={"title": "Queued Story", "description": ""},
+        json={
+            "title": "Queued Story",
+            "description": "",
+            "external_url": "https://example.com/queued-story",
+        },
         headers=headers,
     )
     book_id = book_response.json()["id"]
@@ -95,7 +106,11 @@ async def test_snippet_upload_enforces_word_count(client):
     headers = {"Authorization": f"Bearer {token}"}
     book_response = await client.post(
         "/books",
-        json={"title": "Short Hook", "description": ""},
+        json={
+            "title": "Short Hook",
+            "description": "",
+            "external_url": "https://example.com/short-hook",
+        },
         headers=headers,
     )
     book_id = book_response.json()["id"]

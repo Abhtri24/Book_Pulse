@@ -15,6 +15,15 @@ class BookStatus(str, enum.Enum):
     hiatus = "hiatus"
 
 
+class SourcePlatform(str, enum.Enum):
+    royalroad = "royalroad"
+    tapas = "tapas"
+    wattpad = "wattpad"
+    webnovel = "webnovel"
+    own_site = "own_site"
+    other = "other"
+
+
 class Book(Base):
     __tablename__ = "books"
 
@@ -23,10 +32,16 @@ class Book(Base):
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[BookStatus] = mapped_column(Enum(BookStatus), default=BookStatus.draft)
+    external_url: Mapped[str] = mapped_column(String(500))
+    source_platform: Mapped[SourcePlatform] = mapped_column(
+        Enum(SourcePlatform),
+        default=SourcePlatform.other,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
     )
 
     author = relationship("Author", back_populates="books")
+    chapters = relationship("Chapter", back_populates="book", cascade="all, delete-orphan")
     snippets = relationship("Snippet", back_populates="book", cascade="all, delete-orphan")

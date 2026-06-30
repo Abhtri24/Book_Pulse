@@ -12,7 +12,7 @@ from app.services.auth_service import create_access_token
 async def create_feedback_fixture(db_session):
     owner = Author(username="owner", email="owner@example.com", password_hash="hash")
     other = Author(username="other", email="other@example.com", password_hash="hash")
-    book = Book(author=owner, title="Owned Book")
+    book = Book(author=owner, title="Owned Book", external_url="https://example.com/owned")
     snippet = Snippet(author=owner, book=book, content="sample", chapter_number=1)
     feedback = SnippetFeedback(
         snippet=snippet,
@@ -65,7 +65,7 @@ async def test_anonymous_receives_401(client, db_session):
 @pytest.mark.asyncio
 async def test_missing_feedback_returns_404(client, db_session):
     author = Author(username="nofeedback", email="nofeedback@example.com", password_hash="hash")
-    book = Book(author=author, title="No Feedback")
+    book = Book(author=author, title="No Feedback", external_url="https://example.com/no-feedback")
     snippet = Snippet(author=author, book=book, content="sample", chapter_number=1)
     db_session.add_all([author, book, snippet])
     await db_session.commit()
@@ -82,8 +82,8 @@ async def test_missing_feedback_returns_404(client, db_session):
 @pytest.mark.asyncio
 async def test_snippet_must_belong_to_book(client, db_session):
     owner = Author(username="owner2", email="owner2@example.com", password_hash="hash")
-    book = Book(author=owner, title="Book One")
-    other_book = Book(author=owner, title="Book Two")
+    book = Book(author=owner, title="Book One", external_url="https://example.com/one")
+    other_book = Book(author=owner, title="Book Two", external_url="https://example.com/two")
     snippet = Snippet(author=owner, book=other_book, content="sample", chapter_number=1)
     db_session.add_all([owner, book, other_book, snippet])
     await db_session.commit()

@@ -17,7 +17,7 @@ async def seed_ranking_data(db_session):
         email="author1@example.com",
         password_hash="hash",
     )
-    book = Book(author=author, title="Book 1")
+    book = Book(author=author, title="Book 1", external_url="https://example.com/book-1")
 
     # Snippet A: Quality Score = 80*0.6 + 60*0.4 = 72.0
     # Hook Score = 80, Readability = 60

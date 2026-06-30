@@ -732,6 +732,23 @@ async def get_dashboard() -> str:
                             <label>Description (Optional)</label>
                             <input type="text" id="bookDesc" class="form-control" placeholder="An epic journey across the cosmos.">
                         </div>
+                        <div style="display: grid; grid-template-columns: 1fr 180px; gap: 16px;">
+                            <div class="form-group">
+                                <label>External Book URL</label>
+                                <input type="url" id="bookExternalUrl" class="form-control" placeholder="https://www.royalroad.com/fiction/..." required>
+                            </div>
+                            <div class="form-group">
+                                <label>Source Platform</label>
+                                <select id="bookSourcePlatform" class="form-control">
+                                    <option value="other">Other</option>
+                                    <option value="royalroad">Royal Road</option>
+                                    <option value="tapas">Tapas</option>
+                                    <option value="wattpad">Wattpad</option>
+                                    <option value="webnovel">Webnovel</option>
+                                    <option value="own_site">Own Site</option>
+                                </select>
+                            </div>
+                        </div>
                         <button type="submit" class="btn" id="createBookBtn" style="width: auto;">Create Book</button>
                     </form>
                 </div>
@@ -1085,6 +1102,8 @@ async def get_dashboard() -> str:
             const title = document.getElementById("bookTitle").value;
             const status = document.getElementById("bookStatus").value;
             const description = document.getElementById("bookDesc").value;
+            const external_url = document.getElementById("bookExternalUrl").value;
+            const source_platform = document.getElementById("bookSourcePlatform").value;
             const btn = document.getElementById("createBookBtn");
 
             btn.disabled = true;
@@ -1097,13 +1116,14 @@ async def get_dashboard() -> str:
                         "Content-Type": "application/json",
                         "Authorization": `Bearer ${activeToken}`
                     },
-                    body: JSON.stringify({ title, status, description })
+                    body: JSON.stringify({ title, status, description, external_url, source_platform })
                 });
 
                 if (res.ok) {
                     showToast("Book created successfully!", "success");
                     document.getElementById("bookTitle").value = "";
                     document.getElementById("bookDesc").value = "";
+                    document.getElementById("bookExternalUrl").value = "";
                     await loadBooks();
                 } else {
                     const err = await res.json();

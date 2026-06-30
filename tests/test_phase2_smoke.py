@@ -22,7 +22,11 @@ async def test_phase2_mocked_embedding_pipeline_smoke(monkeypatch, client, db_se
     headers = {"Authorization": f"Bearer {token}"}
     book_response = await client.post(
         "/books",
-        json={"title": "Smoke Test Story", "description": ""},
+        json={
+            "title": "Smoke Test Story",
+            "description": "",
+            "external_url": "https://example.com/smoke-test-story",
+        },
         headers=headers,
     )
     book_id = book_response.json()["id"]

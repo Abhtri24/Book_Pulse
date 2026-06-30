@@ -46,7 +46,12 @@ async def _create_snippet(db_session) -> Snippet:
         email=f"{uuid.uuid4()}@example.com",
         password_hash="hash",
     )
-    book = Book(author=author, title="Classifier Story", description="")
+    book = Book(
+        author=author,
+        title="Classifier Story",
+        description="",
+        external_url="https://example.com/classifier-story",
+    )
     snippet = Snippet(
         author=author,
         book=book,

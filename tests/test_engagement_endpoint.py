@@ -45,7 +45,11 @@ async def _make_ready_snippet(db_session, *, username_suffix: str = ""):
         email=f"author_{suffix}@example.com",
         password_hash="hashed",
     )
-    book = Book(author=author, title=f"Book {suffix}")
+    book = Book(
+        author=author,
+        title=f"Book {suffix}",
+        external_url=f"https://example.com/books/{suffix}",
+    )
     snippet = Snippet(
         author=author,
         book=book,
@@ -252,7 +256,7 @@ async def test_pending_snippet_returns_400(client, db_session):
         email=f"auth_{suffix}@example.com",
         password_hash="hashed",
     )
-    book = Book(author=author, title="Pending Book")
+    book = Book(author=author, title="Pending Book", external_url="https://example.com/pending")
     snippet = Snippet(
         author=author,
         book=book,
@@ -290,7 +294,11 @@ async def test_processing_snippet_returns_400(client, db_session):
         email=f"auth2_{suffix}@example.com",
         password_hash="hashed",
     )
-    book = Book(author=author, title="Processing Book")
+    book = Book(
+        author=author,
+        title="Processing Book",
+        external_url="https://example.com/processing",
+    )
     snippet = Snippet(
         author=author,
         book=book,

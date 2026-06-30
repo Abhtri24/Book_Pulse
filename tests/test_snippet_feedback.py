@@ -14,7 +14,12 @@ async def test_snippet_feedback_persists_as_one_to_one(db_session):
         email="feedback-author@example.com",
         password_hash="hash",
     )
-    book = Book(author=author, title="Feedback Story", description="")
+    book = Book(
+        author=author,
+        title="Feedback Story",
+        description="",
+        external_url="https://example.com/feedback-story",
+    )
     snippet = Snippet(
         author=author,
         book=book,

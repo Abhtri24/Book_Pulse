@@ -54,7 +54,7 @@ def test_analyze_readability_rejects_empty_text():
 @pytest.mark.asyncio
 async def test_query_top_snippets_filters_and_orders(db_session):
     author = Author(username="a", email="a@example.com", password_hash="hash")
-    book = Book(author=author, title="Book")
+    book = Book(author=author, title="Book", external_url="https://example.com/book")
 
     # Snippet in target genre
     s1 = Snippet(author=author, book=book, content="Content 1 " * 50, chapter_number=1)
@@ -123,7 +123,7 @@ async def test_run_quality_agent_success(monkeypatch, db_session):
     get_settings.cache_clear()
 
     author = Author(username="a", email="a@example.com", password_hash="hash")
-    book = Book(author=author, title="Book")
+    book = Book(author=author, title="Book", external_url="https://example.com/book")
     snippet = Snippet(author=author, book=book, content="Once upon a time in a faraway kingdom.", chapter_number=1)
 
     db_session.add(author)
@@ -222,7 +222,7 @@ async def test_run_quality_agent_retries_on_malformed_json(monkeypatch, db_sessi
     get_settings.cache_clear()
 
     author = Author(username="a2", email="a2@example.com", password_hash="hash")
-    book = Book(author=author, title="Book")
+    book = Book(author=author, title="Book", external_url="https://example.com/book")
     snippet = Snippet(author=author, book=book, content="Sample content for retry test.", chapter_number=1)
 
     db_session.add(author)
@@ -274,7 +274,7 @@ async def test_run_quality_agent_fails_after_retry(monkeypatch, db_session):
     get_settings.cache_clear()
 
     author = Author(username="a3", email="a3@example.com", password_hash="hash")
-    book = Book(author=author, title="Book")
+    book = Book(author=author, title="Book", external_url="https://example.com/book")
     snippet = Snippet(author=author, book=book, content="Sample content for failure test.", chapter_number=1)
 
     db_session.add(author)
@@ -310,7 +310,7 @@ async def test_run_quality_agent_missing_api_key(monkeypatch, db_session):
     get_settings.cache_clear()
 
     author = Author(username="a4", email="a4@example.com", password_hash="hash")
-    book = Book(author=author, title="Book")
+    book = Book(author=author, title="Book", external_url="https://example.com/book")
     snippet = Snippet(author=author, book=book, content="Sample content.", chapter_number=1)
 
     db_session.add(author)
@@ -330,7 +330,7 @@ async def test_run_quality_agent_executes_readability_and_hook_tools(monkeypatch
     get_settings.cache_clear()
 
     author = Author(username="a5", email="a5@example.com", password_hash="hash")
-    book = Book(author=author, title="Book")
+    book = Book(author=author, title="Book", external_url="https://example.com/book")
     snippet = Snippet(author=author, book=book, content=SAMPLE_TEXT, chapter_number=1)
 
     db_session.add(author)

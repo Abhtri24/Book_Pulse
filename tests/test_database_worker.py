@@ -78,7 +78,11 @@ def test_sequential_celery_tasks_use_worker_sessions(monkeypatch, worker_databas
     async def seed_snippet() -> str:
         async with worker_session() as session:
             author = Author(username="seq-author", email="seq@example.com", password_hash="hash")
-            book = Book(author=author, title="Sequential Book")
+            book = Book(
+                author=author,
+                title="Sequential Book",
+                external_url="https://example.com/sequential",
+            )
             snippet = Snippet(
                 author=author,
                 book=book,
@@ -144,7 +148,11 @@ def test_repeated_feedback_task_execution_is_idempotent(monkeypatch, worker_data
     async def seed_ready_snippet() -> str:
         async with worker_session() as session:
             author = Author(username="repeat-author", email="repeat@example.com", password_hash="hash")
-            book = Book(author=author, title="Repeat Book")
+            book = Book(
+                author=author,
+                title="Repeat Book",
+                external_url="https://example.com/repeat",
+            )
             snippet = Snippet(
                 author=author,
                 book=book,

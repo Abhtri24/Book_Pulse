@@ -14,7 +14,12 @@ async def test_snippet_metadata_persists_as_one_to_one(db_session):
         email="metadata-author@example.com",
         password_hash="hash",
     )
-    book = Book(author=author, title="Metadata Story", description="")
+    book = Book(
+        author=author,
+        title="Metadata Story",
+        description="",
+        external_url="https://example.com/metadata-story",
+    )
     snippet = Snippet(
         author=author,
         book=book,

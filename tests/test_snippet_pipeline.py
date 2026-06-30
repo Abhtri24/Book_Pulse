@@ -19,6 +19,7 @@ async def create_snippet(db_session) -> Snippet:
         author=author,
         title="Vector Story",
         description="",
+        external_url="https://example.com/vector-story",
     )
     snippet = Snippet(
         author=author,

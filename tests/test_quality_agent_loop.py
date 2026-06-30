@@ -16,7 +16,7 @@ async def test_mocked_groq_response_json_validation(monkeypatch, db_session):
     get_settings.cache_clear()
 
     author = Author(username="loop", email="loop@example.com", password_hash="hash")
-    book = Book(author=author, title="Loop Book")
+    book = Book(author=author, title="Loop Book", external_url="https://example.com/loop")
     snippet = Snippet(author=author, book=book, content="The door opened before she knocked.", chapter_number=1)
     db_session.add_all([author, book, snippet])
     await db_session.commit()
@@ -46,7 +46,7 @@ async def test_mocked_tool_calls(monkeypatch, db_session):
     get_settings.cache_clear()
 
     author = Author(username="tools", email="tools@example.com", password_hash="hash")
-    book = Book(author=author, title="Tool Book")
+    book = Book(author=author, title="Tool Book", external_url="https://example.com/tool")
     snippet = Snippet(author=author, book=book, content="The rain fell hard. She ran.", chapter_number=1)
     db_session.add_all([author, book, snippet])
     await db_session.commit()
@@ -89,7 +89,7 @@ async def test_malformed_response_retry_path(monkeypatch, db_session):
     get_settings.cache_clear()
 
     author = Author(username="retry", email="retry@example.com", password_hash="hash")
-    book = Book(author=author, title="Retry Book")
+    book = Book(author=author, title="Retry Book", external_url="https://example.com/retry")
     snippet = Snippet(author=author, book=book, content="A clock stopped at midnight.", chapter_number=1)
     db_session.add_all([author, book, snippet])
     await db_session.commit()
