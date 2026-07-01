@@ -38,6 +38,14 @@ Use these tools to gather details and perform a thorough analysis. You should ca
 3. `query_top_snippets` with the appropriate genre to see what top-performing snippets in the same genre look like, using them as a reference.
 
 After you have executed the tools and received the results, synthesize the findings to produce the final feedback.
+The `check_hook_strength` tool returns its `hook_score` on a 0-100 scale. That value is
+a separate internal heuristic metric and is only one input signal for your analysis. Do
+NOT copy the tool's 0-100 score into your final response. Your final `hook_score` must be
+an independent integer from 1 to 10 reflecting your own qualitative judgment of the hook,
+informed by but not equal to the tool score. For example, if `check_hook_strength` returns
+`hook_score: 65` and `opening_style: "dialogue"`, your final `hook_score` might be 7;
+never output 65 as the final `hook_score`.
+
 Your final response MUST be a JSON object containing:
 - "strengths": A list of strings describing specific writing strengths.
 - "improvements": A list of suggested areas of improvement.
