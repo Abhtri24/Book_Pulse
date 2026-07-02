@@ -137,6 +137,13 @@ class TestComputeGenreMatch:
     def test_non_matching_genre_returns_zero(self):
         assert compute_genre_match("romance", ["fantasy"]) == 0.0
 
+    def test_matching_subgenre_returns_one(self):
+        assert compute_genre_match(
+            "romance",
+            [" sci-fi "],
+            ["Fantasy", " Sci-Fi "],
+        ) == 1.0
+
 
 class TestComputeSemanticSimilarity:
     def test_identical_vectors_score_one(self):

@@ -8,6 +8,7 @@ __pycache__/
 *.md
 !README.md
 
+scripts/seed_data/
 
 .pytest_cache/
 .mypy_cache/

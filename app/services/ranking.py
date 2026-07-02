@@ -80,6 +80,7 @@ class RankingCandidate:
     quality_score: float
     hook_score: int
     created_at: datetime
+    sub_genres: tuple[str, ...] = field(default_factory=tuple)
     semantic_similarity: float | None = None
     rank_score: float = field(default=0.0, compare=False)
 
@@ -169,8 +170,9 @@ def compute_diversity_penalty(
 def compute_genre_match(
     primary_genre: str,
     preferred_genres: list[str] | None,
+    sub_genres: tuple[str, ...] | list[str] | None = None,
 ) -> float:
-    """Return 1.0 when *primary_genre* matches a preferred genre, else 0.0."""
+    """Return 1.0 when a primary or subgenre matches a preferred genre."""
     if not preferred_genres:
         return 0.0
 
@@ -182,7 +184,13 @@ def compute_genre_match(
     if not preferred:
         return 0.0
 
-    return 1.0 if primary_genre.strip().lower() in preferred else 0.0
+    candidate_genres = {primary_genre.strip().lower()}
+    candidate_genres.update(
+        genre.strip().lower()
+        for genre in sub_genres or ()
+        if genre and genre.strip()
+    )
+    return 1.0 if candidate_genres & preferred else 0.0
 
 
 def compute_rank_score(
@@ -199,7 +207,11 @@ def compute_rank_score(
     recency = compute_recency_score(candidate.created_at, reference_time)
     hook = normalize_hook_score(candidate.hook_score)
     semantic = normalize_semantic_similarity(candidate.semantic_similarity)
-    genre = compute_genre_match(candidate.primary_genre, preferred_genres)
+    genre = compute_genre_match(
+        candidate.primary_genre,
+        preferred_genres,
+        candidate.sub_genres,
+    )
     diversity = compute_diversity_penalty(
         candidate,
         seen_author_ids,

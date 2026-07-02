@@ -47,6 +47,7 @@ async def register_reader(payload: RegisterReaderRequest, db: AsyncSession = Dep
         username=payload.username,
         email=payload.email,
         password_hash=hash_password(payload.password),
+        preferred_genres=payload.preferred_genres,
     )
     db.add(reader)
     try:

@@ -37,6 +37,7 @@ COLD_START_POOL_MULTIPLIER: int = 5
 PERSONALIZED_POOL_MULTIPLIER: int = 5
 DEFAULT_PAGE_SIZE: int = 20
 MAX_PAGE_SIZE: int = 100
+COLD_START_INTERACTION_THRESHOLD: int = 5
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,7 @@ async def fetch_cold_start_candidates(
             Snippet.id,
             Snippet.author_id,
             SnippetMetadata.primary_genre,
+            SnippetMetadata.sub_genres,
             SnippetMetadata.quality_score,
             SnippetMetadata.hook_score,
             SnippetMetadata.created_at,
@@ -78,6 +80,7 @@ async def fetch_cold_start_candidates(
             snippet_id=row["id"],
             author_id=row["author_id"],
             primary_genre=row["primary_genre"],
+            sub_genres=tuple(row["sub_genres"] or []),
             quality_score=float(row["quality_score"]),
             hook_score=int(row["hook_score"]),
             created_at=row["created_at"],
@@ -117,16 +120,20 @@ async def build_feed_response(
     db: AsyncSession,
     *,
     preference_vector: list[float],
+    vector_update_count: int,
     page: int = 1,
     page_size: int = DEFAULT_PAGE_SIZE,
     preferred_genres: list[str] | None = None,
     reference_time: datetime | None = None,
 ) -> FeedResponse:
-    """Build a reader feed, routing empty preference vectors to cold start."""
+    """Build a feed, keeping new readers cold until five vector updates."""
     safe_page = max(page, 1)
     safe_page_size = min(max(page_size, 1), MAX_PAGE_SIZE)
 
-    if not has_usable_preference_vector(preference_vector):
+    if (
+        vector_update_count < COLD_START_INTERACTION_THRESHOLD
+        or not has_usable_preference_vector(preference_vector)
+    ):
         return await build_cold_start_feed_response(
             db,
             page=safe_page,
@@ -202,6 +209,7 @@ async def build_personalized_feed_response(
             snippet_id=snippet_id,
             author_id=record.snippet.author_id,
             primary_genre=record.metadata.primary_genre,
+            sub_genres=tuple(record.metadata.sub_genres or []),
             quality_score=float(record.metadata.quality_score or 0.0),
             hook_score=record.metadata.hook_score,
             created_at=record.metadata.created_at,

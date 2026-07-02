@@ -154,12 +154,20 @@ async def seed_cold_start_data(db_session):
     return recent_high, older_good, stale_low, pending
 
 
-async def seed_reader(db_session, *, preference_vector=None) -> Reader:
+async def seed_reader(
+    db_session,
+    *,
+    preference_vector=None,
+    vector_update_count=0,
+    preferred_genres=None,
+) -> Reader:
     reader = Reader(
         username=f"reader_{len(preference_vector or [])}_{datetime.now().timestamp()}",
         email=f"reader_{datetime.now().timestamp()}@example.com",
         password_hash="hash",
         preference_vector=preference_vector or [],
+        vector_update_count=vector_update_count,
+        preferred_genres=preferred_genres or [],
     )
     db_session.add(reader)
     await db_session.commit()
@@ -274,7 +282,7 @@ async def test_build_cold_start_feed_returns_ranked_recent_high_quality(
 
 
 @pytest.mark.asyncio
-async def test_build_cold_start_feed_respects_genre_preference(db_session):
+async def test_build_cold_start_feed_matches_subgenre_preference(db_session):
     author = Author(
         username="genre_author",
         email="genre_author@example.com",
@@ -314,8 +322,8 @@ async def test_build_cold_start_feed_respects_genre_preference(db_session):
     )
     sci_fi_meta = SnippetMetadata(
         snippet=sci_fi,
-        primary_genre="sci-fi",
-        sub_genres=[],
+        primary_genre="romance",
+        sub_genres=[" Sci-Fi "],
         pov="third_person",
         pacing="fast",
         tone="serious",
@@ -361,6 +369,7 @@ async def test_build_feed_response_routes_empty_preference_to_cold_start(db_sess
     response = await build_feed_response(
         db_session,
         preference_vector=[],
+        vector_update_count=0,
         page=1,
         page_size=2,
         reference_time=REF,
@@ -476,9 +485,37 @@ async def test_feed_endpoint_returns_cold_start_for_reader_without_vector(client
 
 
 @pytest.mark.asyncio
+async def test_feed_stays_cold_below_interaction_threshold_with_usable_vector(
+    client,
+    db_session,
+):
+    await seed_cold_start_data(db_session)
+    reader = await seed_reader(
+        db_session,
+        preference_vector=PREF,
+        vector_update_count=4,
+        preferred_genres=["fantasy"],
+    )
+
+    with patch("app.services.feed_service.search_similar") as search:
+        response = await client.get(
+            "/feed?page_size=1",
+            headers={"Authorization": f"Bearer {reader_token(reader)}"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["mode"] == "cold_start"
+    search.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_feed_endpoint_returns_personalized_for_reader_with_vector(client, db_session):
     snippets = await seed_personalized_data(db_session)
-    reader = await seed_reader(db_session, preference_vector=PREF)
+    reader = await seed_reader(
+        db_session,
+        preference_vector=PREF,
+        vector_update_count=5,
+    )
     hits = [qdrant_hit(snippet.id, 0.9) for snippet in snippets]
 
     with patch("app.services.feed_service.search_similar", return_value=hits):
@@ -512,6 +549,8 @@ async def test_end_to_end_mocked_engagement_to_personalized_feed(client, db_sess
         )
 
     assert engagement.status_code == 200
+    reader.vector_update_count = 5
+    await db_session.commit()
 
     hits = [
         qdrant_hit(snippets[2].id, 0.95),

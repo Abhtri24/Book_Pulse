@@ -213,6 +213,14 @@ async def test_run_quality_agent_success(monkeypatch, db_session):
     assert feedback.rewrite_suggestion == "Open with action."
 
     assert len(captured_requests) == 2
+    first_payload = json.loads(captured_requests[0].content)
+    system_prompt = " ".join(first_payload["messages"][0]["content"].split())
+    assert "0-100 scale" in system_prompt
+    assert "final `hook_score` must be" in system_prompt
+    assert "independent integer from 1 to 10" in system_prompt
+    assert "Do NOT copy" in system_prompt
+    assert "`hook_score: 65`" in system_prompt
+    assert "might be 7" in system_prompt
     get_settings.cache_clear()
 
 

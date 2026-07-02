@@ -26,6 +26,8 @@ async def get_feed(
     return await build_feed_response(
         db,
         preference_vector=reader.preference_vector,
+        vector_update_count=reader.vector_update_count,
+        preferred_genres=reader.preferred_genres,
         page=page,
         page_size=page_size,
     )
