@@ -8,6 +8,7 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://user:pass@host.docker.internal:5432/bookpulse}
+      # Production must provide a non-default SECRET_KEY; startup fails otherwise.
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       REDIS_URL: redis://redis:6379/0
       QDRANT_URL: http://qdrant:6333
@@ -26,6 +27,7 @@ services:
     command: celery -A app.tasks.celery_app.celery_app worker --loglevel=info
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://user:pass@host.docker.internal:5432/bookpulse}
+      # Production must provide a non-default SECRET_KEY; startup fails otherwise.
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       REDIS_URL: redis://redis:6379/0
       QDRANT_URL: http://qdrant:6333

@@ -1,4 +1,9 @@
+import pytest
+from pydantic import ValidationError
+
 from app.config import Settings
+from app.config import get_settings
+from app.main import create_app
 
 
 def test_pipeline_settings_have_defaults():
@@ -22,3 +27,28 @@ def test_pipeline_settings_can_be_overridden(monkeypatch):
     assert settings.embedding_model_name == "custom-embedding-model"
     assert settings.qdrant_url == "http://qdrant:6333"
     assert settings.qdrant_collection_name == "bookpulse-snippets"
+
+
+def test_app_refuses_default_secret_in_production(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("SECRET_KEY", "change-me-in-production")
+    get_settings.cache_clear()
+
+    try:
+        with pytest.raises(ValidationError, match="SECRET_KEY must be explicitly configured"):
+            create_app()
+    finally:
+        get_settings.cache_clear()
+
+
+def test_app_accepts_explicit_secret_in_production(monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "production")
+    monkeypatch.setenv("SECRET_KEY", "deployment-specific-secret-key")
+    get_settings.cache_clear()
+
+    try:
+        application = create_app()
+    finally:
+        get_settings.cache_clear()
+
+    assert application.title == "BookPulse"

@@ -1,14 +1,17 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+DEFAULT_SECRET_KEY = "change-me-in-production"
 
 
 class Settings(BaseSettings):
     app_name: str = "BookPulse"
     environment: str = "development"
     database_url: str = "postgresql+asyncpg://user:pass@localhost:5432/bookpulse"
-    secret_key: str = Field(default="change-me-in-production", min_length=16)
+    secret_key: str = Field(default=DEFAULT_SECRET_KEY, min_length=16)
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
@@ -22,6 +25,18 @@ class Settings(BaseSettings):
     )
     qdrant_url: str = Field(default="http://localhost:6333", min_length=1)
     qdrant_collection_name: str = Field(default="snippets", min_length=1)
+
+    @model_validator(mode="after")
+    def reject_default_production_secret(self) -> "Settings":
+        if (
+            self.environment.strip().lower() == "production"
+            and self.secret_key == DEFAULT_SECRET_KEY
+        ):
+            raise ValueError(
+                "SECRET_KEY must be explicitly configured to a non-default value "
+                "when ENVIRONMENT=production"
+            )
+        return self
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
