@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to BookPulse</title>
+    <style>
+        body {font-family: Arial, sans-serif; margin: 2rem; line-height: 1.6;}
+        h1 {color: #2c3e50;}
+        ul {margin-top: 0.5rem;}
+    </style>
+</head>
+<body>
+    <h1>Welcome to BookPulse</h1>
+    <p>
+        BookPulse is a FastAPI‑based platform for managing and analysing reading activity. It provides:
+    </p>
+    <ul>
+        <li>CRUD operations for books, authors, chapters and text snippets.</li>
+        <li>User authentication with JWT access and refresh tokens.</li>
+        <li>Engagement tracking – readers can log reading events and the system records metrics.</li>
+        <li>Feedback collection on snippets and overall reading experience.</li>
+        <li>Automated classification of snippets using a GROQ language model.</li>
+        <li>Dashboard endpoints that expose aggregated statistics for books and readers.</li>
+    </ul>
+    <p>
+        The application stores data in a PostgreSQL database (SQLAlchemy async) and uses Redis/Celery for background tasks.  It is containerised with Docker and includes Alembic migrations for schema evolution.
+    </p>
+    <p>
+        Explore the API documentation at <code>/docs</code> after starting the server.
+    </p>
+</body>
+</html>
